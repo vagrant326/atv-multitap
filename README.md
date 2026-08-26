@@ -50,31 +50,45 @@ they do everywhere else — and what makes `OK` submit in one press instead of t
 this muscle memory came from did it. The digit mode is a shortcut, not the only route, so no field
 is untypeable on a remote with nothing assigned.
 
-**Two keys the method has always needed.** `▶` ends the letter in progress, so a doubled letter
-costs a press instead of a timeout in the middle of a word. `◀` steps back one letter, so tapping
-past `ż` costs one press instead of six more.
+**A key that ends the letter.** `▶` finishes the letter in progress, so a doubled one costs a
+press instead of a timeout in the middle of a word — the complaint every phone keypad of that
+generation eventually answered with exactly this key.
+
+**It types a password, and it is the only keyboard here that does.** Capitals come from a case
+switch on a held `0`, three states and one gesture; the thirty-two QWERTY marks come from a held
+`1`, which swaps what `2`-`9` carry for one symbol and then returns. `docs/archive/PRD-dpad-ime.md`
+required both as G4 — "there must be no input the user is unable to type" — and this is the first
+application in the programme to satisfy it. `atv-letterwise`, `atv-h4` and `atv-t9` still cannot
+type `Tv!2026`.
 
 ## How it types
 
 | Key | What it does |
 |---|---|
 | `2`–`9` | Tap for the letter. `a b c ą ć 2` on `2`, `w x y z ź ż 9` on `9`. |
-| `▶` `▼` | End the letter, so the next tap of the same key starts a new one. |
-| `◀` `▲` | Step back one letter, for when you tap past the one you wanted. |
-| `OK` | Finish the letter and submit. One press, because nothing here needs accepting. |
-| `0` | Finish the letter and add a space. |
+| `▶` | End the letter. With none in progress it belongs to the editor, which moves the caret. |
+| `▼` `CH▾` | End the letter. Consumed either way — down has no caret to move on a one-line field. |
+| `CH▴` | Step back one stop, for when you tap past the one you wanted. |
+| `◀` | The caret, always. The letter in progress is ended first, then the arrow is forwarded. |
+| `▲` | Delete. Always, and it is the only delete that is never conditional on anything. |
+| `OK` | End the letter and submit. One press, because nothing here needs accepting. |
+| `0` | End the letter and add a space. |
 | `1` | Cycle `. , - ' & : /`, replacing in place. |
+| hold `0` | Capitals: `abc` → `Abc` → `ABC`. The one-off is spent by the letter it capitalises. |
+| hold `1` | All thirty-two QWERTY marks on `2`-`9`, four to a key, for one mark. |
+| hold `◀` | The caret, a word at a time. Unconditional, like the tap. |
+| hold `▶` | The same forwards, with no letter in progress. |
+| hold `▲` | Delete back to the start of the word. |
 | `BACK` | Drop the letter in progress, then close the keyboard. |
-| hold `◀` `▶` | The caret, one word at a time. Only with no letter in progress. |
-| hold delete | Delete back to the start of the word. |
 
-The arrows work the cycle only while a letter is in progress. Outside one they belong to whatever
-is behind the keyboard — a keyboard that eats the d-pad on a television leaves the whole device
-unnavigable, which is not a hypothetical.
+`◀`, `▶` and `BACK` fall through to whatever is behind the keyboard when there is no letter in
+progress, and that passthrough is the escape hatch: a keyboard that ate the whole d-pad on a
+television leaves the device unnavigable, which is not a hypothetical.
 
 Three keys are assignable from settings, captured from the remote rather than chosen from a list:
-show-the-keyboard, delete and digits mode. Remotes disagree about which keys exist and about what
-they report — the key this project most wanted turned out to be keycode 300.
+show-the-keyboard, delete and digits mode. Only the first is worth assigning — `▲` already
+deletes and every digit is already the last stop on its own key. Remotes disagree about which keys
+exist and about what they report — the key this project most wanted turned out to be keycode 300.
 
 **Only the trigger is listened for while the keyboard is hidden**, and it is unassigned by
 default.
@@ -117,8 +131,10 @@ take the working keyboard with it.
 
 ## Known gaps
 
-- **No case.** Everything is lowercase, which a television search box does not care about and a
-  message field would. Multitap's usual answer is a shift cycle on `#`, and this remote has no `#`.
+- **The KSPC figure covers the letter run only.** The query corpus contains no capitals and no
+  symbols, so the case switch and the mark layer cost nothing in the number above — while on a
+  real password they cost a held key each and up to four taps per mark. The figure describes a
+  television search box, which is what the corpus is, and nothing else.
 - **No Less-Tap.** Reordering each key's letters by frequency is the cheap 25% saving on this
   method — `docs/00-overview.md` §5 puts Less-Tap at 1.5266 — and it costs exactly what this
   application is here to avoid: the layout stops being the one in everybody's thumb. If it is ever
