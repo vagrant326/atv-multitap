@@ -220,6 +220,16 @@ class MultitapImeService : InputMethodService() {
 
             is Action.NextLetter -> endLetter()
 
+            /**
+             * Settles the letter and forwards the arrow, rather than computing a new selection.
+             * The editor owns the text and the caret, and asking it to move is the only version
+             * that stays correct in a field this keyboard did not fill.
+             */
+            is Action.CaretLeft -> {
+                endLetter()
+                sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+            }
+
             is Action.PreviousLetter -> {
                 multitap.back()?.let { letter ->
                     punctuationAt = -1

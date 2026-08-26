@@ -32,8 +32,24 @@ sealed interface Action {
      * The cheap way out of an overshoot, which is the characteristic mistake here: the cycles are
      * long, the taps are fast, and nothing is printed on the remote. Going round again costs six
      * presses on `9`; this costs one.
+     *
+     * Reachable from `CHANNEL_UP` and from nothing else. It used to sit on the left arrow too,
+     * which does not survive contact with the hardware: the numpad and the d-pad are at opposite
+     * ends of a television remote, and this correction is *reactive* — the user overshoots, then
+     * notices, then starts moving their thumb. The timeout is 800ms at its shortest. The race was
+     * lost before it began, and the arrow was meanwhile unavailable for the caret. `CHANNEL_UP`
+     * sits beside the numpad on the remotes that have it, which is the one place the gesture is
+     * physically plausible.
      */
     data object PreviousLetter : Action
+
+    /**
+     * The caret, one character back, ending the letter in progress on the way.
+     *
+     * The counterpart of the reasoning on [PreviousLetter]: moving the caret is deliberate rather
+     * than reactive, so the walk across the remote costs nothing and there is no window to miss.
+     */
+    data object CaretLeft : Action
 
     /** Ends the letter and submits, which for a search box is what OK means. */
     data object Commit : Action
@@ -156,8 +172,9 @@ object KeyBindings {
                 // nothing is worse than one that is not there.
                 KeyEvent.KEYCODE_0 -> if (digits) Action.Ignore else Action.ToggleCase
 
-                KeyEvent.KEYCODE_DPAD_LEFT ->
-                    if (pending) Action.Ignore else Action.WordJump(forward = false)
+                // Unconditional, unlike right: left is the caret whether or not a letter is in
+                // progress, so holding it is the word-sized version of the same thing.
+                KeyEvent.KEYCODE_DPAD_LEFT -> Action.WordJump(forward = false)
 
                 KeyEvent.KEYCODE_DPAD_RIGHT ->
                     if (pending) Action.Ignore else Action.WordJump(forward = true)
@@ -202,8 +219,12 @@ object KeyBindings {
             ->
                 if (pending) Action.NextLetter else null
 
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_CHANNEL_UP ->
-                if (pending) Action.PreviousLetter else null
+            KeyEvent.KEYCODE_CHANNEL_UP -> if (pending) Action.PreviousLetter else null
+
+            // Left is the caret, always. While a letter is in progress it is settled first and
+            // the arrow forwarded, so the composing region is never left behind somewhere the
+            // user has walked away from.
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (pending) Action.CaretLeft else null
 
             // Up deletes, whether or not a letter is in progress, and it is the only route that
             // is always there. The other three are conditional in ways a user cannot see: the

@@ -92,7 +92,7 @@
     <string name="strip_case_once" translatable="false">Abc</string>
     <string name="strip_case_locked" translatable="false">ABC</string>
     <string name="strip_next_keys" translatable="false">▶ ▼ · CH▾</string>
-    <string name="strip_back_keys" translatable="false">◀ · CH▴</string>
+    <string name="strip_back_keys" translatable="false">CH▴</string>
     <string name="strip_commit_keys">OK · 0 adds a space</string>
     <string name="strip_delete_keys" translatable="false">▲</string>
 
