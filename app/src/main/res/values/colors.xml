@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The logo palette, named by role and not by hue, because the dev channel overrides two of
+         these values and the geometry has to stay in one place. The unlit key sits darker here
+         than in the sibling apps: nine keys plus a tap counter is a busy icon, and the extra
+         contrast is what keeps the lit key readable at launcher size. -->
+    <color name="logo_plate">#101014</color>
+    <color name="logo_key">#2E4655</color>
+    <color name="logo_accent">#7FD1FF</color>
+    <color name="logo_glyph">#E8E8EC</color>
+</resources>
