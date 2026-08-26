@@ -89,6 +89,9 @@
     <string name="strip_hint_delete">Delete</string>
     <string name="strip_hint_case">Capitals</string>
     <string name="strip_case_keys">Hold 0 · once, then locked</string>
+    <string name="strip_hint_symbols">Marks</string>
+    <string name="strip_symbol_keys">Hold 1 · all 32, one shot</string>
+    <string name="strip_symbols" translatable="false">!@#</string>
     <string name="strip_case_once" translatable="false">Abc</string>
     <string name="strip_case_locked" translatable="false">ABC</string>
     <string name="strip_next_keys" translatable="false">▶ ▼ · CH▾</string>

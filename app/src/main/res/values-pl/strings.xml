@@ -77,6 +77,8 @@
     <string name="strip_hint_delete">Kasowanie</string>
     <string name="strip_hint_case">Wielkie</string>
     <string name="strip_case_keys">Przytrzymaj 0 · raz, potem na stałe</string>
+    <string name="strip_hint_symbols">Znaki</string>
+    <string name="strip_symbol_keys">Przytrzymaj 1 · wszystkie 32, na jeden raz</string>
     <string name="strip_commit_keys">OK · 0 dodaje spację</string>
 
     <string name="hint_keypad">Siatka klawiszy</string>

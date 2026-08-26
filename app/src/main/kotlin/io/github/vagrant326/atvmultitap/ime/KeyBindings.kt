@@ -83,15 +83,27 @@ sealed interface Action {
     data object ToggleCase : Action
 
     /**
-     * A key whose meaning is not settled yet: released it is a space, held it is [ToggleCase].
-     * Resolved in `MultitapImeService.onKeyUp`.
+     * Swaps the letters on `2`-`9` for the full set of QWERTY marks, from holding `1`.
      *
-     * Only `0` needs this. Android delivers a hold as a *second* key-down after the first, so a
-     * space written on the way down would already be in the field by the time the hold said the
-     * press was a case switch — and un-typing it is visible. Every other key here acts on the
-     * way down; ported from LetterWise, which hit this first.
+     * `1` because that is already the punctuation key, so the hold is more of what the tap does
+     * rather than an unrelated function parked on a free button — and there is no free button.
+     * The layer is spent by one symbol, like [ToggleCase]'s one-off: an address needs `@` once
+     * and a password needs `!` once, and a sticky layer would make both of them three presses
+     * instead of two while adding a mode that can be forgotten.
      */
-    data object DeferToRelease : Action
+    data object ToggleSymbols : Action
+
+    /**
+     * A key whose meaning is not settled yet. Resolved in `MultitapImeService.onKeyUp`: released,
+     * `0` is a space and `1` is the next mark; held, they are [ToggleCase] and [ToggleSymbols].
+     *
+     * `0` and `1` are the two keys whose short press commits text outright, and Android delivers
+     * a hold as a *second* key-down after the first — so their character would already be in the
+     * field by the time the hold announced itself, and un-typing it is visible. `2`-`9` only set
+     * composing text, which a hold can replace for free, so they still act on the way down and
+     * the letter appears as you type. Ported from LetterWise, which hit this first.
+     */
+    data class DeferToRelease(val keyCode: Int) : Action
 
     /** Consume the event and do nothing, which is what a key held down past the first repeat
      *  has to do: a number key that repeated would append letters nobody pressed. */
@@ -171,6 +183,7 @@ object KeyBindings {
                 // Nothing to capitalise in a digit field, and a gesture that silently does
                 // nothing is worse than one that is not there.
                 KeyEvent.KEYCODE_0 -> if (digits) Action.Ignore else Action.ToggleCase
+                KeyEvent.KEYCODE_1 -> if (digits) Action.Ignore else Action.ToggleSymbols
 
                 // Unconditional, unlike right: left is the caret whether or not a letter is in
                 // progress, so holding it is the word-sized version of the same thing.
@@ -208,8 +221,7 @@ object KeyBindings {
             in KeyEvent.KEYCODE_2..KeyEvent.KEYCODE_9 ->
                 Action.Digit('0' + (keyCode - KeyEvent.KEYCODE_0))
 
-            KeyEvent.KEYCODE_0 -> Action.DeferToRelease
-            KeyEvent.KEYCODE_1 -> Action.Punctuation
+            KeyEvent.KEYCODE_0, KeyEvent.KEYCODE_1 -> Action.DeferToRelease(keyCode)
 
             // Right ends the letter, left steps back through it. Up and down do the same job, and
             // so do CHANNEL_UP and CHANNEL_DOWN, which sit beside the numpad on the remotes that

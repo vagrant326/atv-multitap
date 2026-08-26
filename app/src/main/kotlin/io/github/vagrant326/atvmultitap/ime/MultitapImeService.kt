@@ -10,6 +10,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
 import io.github.vagrant326.atvmultitap.core.Keypad
+import io.github.vagrant326.atvmultitap.core.Layer
 import io.github.vagrant326.atvmultitap.core.LetterCase
 import io.github.vagrant326.atvmultitap.core.Multitap
 import io.github.vagrant326.atvmultitap.core.Press
@@ -98,9 +99,10 @@ class MultitapImeService : InputMethodService() {
         punctuationAt = -1
         deferredKey = KeyEvent.KEYCODE_UNKNOWN
 
-        // Like the digit mode below, the case belongs to the field and not to the app: a lock
-        // left on in one box must not follow the user into the next one.
+        // Like the digit mode below, the case and the layer belong to the field and not to the
+        // app: neither a lock nor a half-used symbol layer may follow the user into the next box.
         letterCase = LetterCase.LOWER
+        multitap.use(Layer.LETTERS)
 
         // A field that wants a number gets digits without being asked. Anything else starts in
         // letters even if the mode was left on: the mode belongs to the field, not to the app.
@@ -180,20 +182,21 @@ class MultitapImeService : InputMethodService() {
     }
 
     /**
-     * `0` is the only key here that commits nothing until it is released, because it is the only
-     * one that means two things.
+     * `0` and `1` commit nothing until they are released, because they are the two keys that mean
+     * two things each — a space or the case switch, a mark or the symbol layer.
      *
-     * Android delivers a hold as a second key-down, so a space written on the way down is
-     * already in the field by the time the hold announces itself as the case switch — and taking
-     * it back is visible in a field the user is looking at. Nothing else on this keyboard needs
-     * the deferral: `1` replaces its own mark in place and `2`-`9` only set composing text.
+     * Android delivers a hold as a second key-down, so a character written on the way down is
+     * already in the field by the time the hold announces itself — and taking it back is visible
+     * in a field the user is looking at. `2`-`9` need no deferral: they only set composing text,
+     * which a hold can replace for nothing.
      */
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
         if (keyCode != deferredKey) {
             return super.onKeyUp(keyCode, event)
         }
+        val released = deferredKey
         deferredKey = KeyEvent.KEYCODE_UNKNOWN
-        return handle(Action.Space)
+        return handle(if (released == KeyEvent.KEYCODE_1) Action.Punctuation else Action.Space)
     }
 
     private fun handle(action: Action): Boolean {
@@ -205,7 +208,16 @@ class MultitapImeService : InputMethodService() {
                     endLetter()
                     currentInputConnection?.commitText(action.digit.toString(), 1)
                 } else {
-                    multitap.press(action.digit, System.currentTimeMillis())?.let { press ->
+                    val now = System.currentTimeMillis()
+                    // The symbol layer is spent by one symbol, and the press that finishes a
+                    // symbol is already the *next* character — so the layer has to go back
+                    // before the press rather than after it, or the letter the user meant would
+                    // come out of the symbol run. A second tap of the same key still cycles,
+                    // which is what lets `#` be two taps of `4`.
+                    if (multitap.layer == Layer.SYMBOLS && multitap.wouldSettle(action.digit, now)) {
+                        endLetter()
+                    }
+                    multitap.press(action.digit, now)?.let { press ->
                         show(press)
                         // Armed from the press and from nothing else, because that is what
                         // [Multitap] measures from. Stepping back does not push it out: the
@@ -252,7 +264,23 @@ class MultitapImeService : InputMethodService() {
                 }
             }
 
-            is Action.DeferToRelease -> deferredKey = KeyEvent.KEYCODE_0
+            is Action.DeferToRelease -> deferredKey = action.keyCode
+
+            /**
+             * One symbol and back to letters, so the layer cannot be left on by mistake.
+             * Switching settles whatever is in progress: the character in flight is a position
+             * in a run, and a position that outlived the run changing would come back as a
+             * different character than the one on screen.
+             */
+            is Action.ToggleSymbols -> {
+                deferredKey = KeyEvent.KEYCODE_UNKNOWN
+                // Read before [endLetter], which returns the layer to letters on its way out.
+                // Asking afterwards would find letters every time and the layer could be entered
+                // but never left.
+                val next = if (multitap.layer == Layer.SYMBOLS) Layer.LETTERS else Layer.SYMBOLS
+                endLetter()
+                multitap.use(next)
+            }
 
             is Action.Space -> {
                 endLetter()
@@ -355,6 +383,11 @@ class MultitapImeService : InputMethodService() {
         clock.removeCallbacks(lapse)
         currentInputConnection?.finishComposingText()
         spendCase(settled)
+
+        // A symbol that has reached the field has spent the layer, exactly as a capital spends
+        // the one-off case. Only a character spends it: holding `1` and then pressing space or
+        // delete settles nothing, so the layer survives and the user has not silently lost it.
+        multitap.use(Layer.LETTERS)
     }
 
     /**
@@ -422,11 +455,12 @@ class MultitapImeService : InputMethodService() {
         val digit = multitap.activeDigit
         strip.render(
             StripState(
-                cycle = digit?.let { Keypad.cycleOf(it) }.orEmpty(),
+                cycle = digit?.let { Keypad.cycleOf(it, multitap.layer) }.orEmpty(),
                 cycleDigit = digit,
                 cycleIndex = multitap.activeIndex,
                 hintMode = preferences.hintMode,
                 letterCase = letterCase,
+                layer = multitap.layer,
                 digits = digits,
                 hasEditor = currentInputConnection != null,
                 customKeys = preferences.customKeys,

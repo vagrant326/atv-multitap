@@ -14,6 +14,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import io.github.vagrant326.atvmultitap.R
 import io.github.vagrant326.atvmultitap.core.Keypad
+import io.github.vagrant326.atvmultitap.core.Layer
 import io.github.vagrant326.atvmultitap.core.LetterCase
 import io.github.vagrant326.atvmultitap.settings.HintMode
 
@@ -92,6 +93,9 @@ class MultitapStripView(context: Context) : LinearLayout(context) {
         addView(hintLine(context.getString(R.string.strip_hint_case), hintValue().apply {
             text = context.getString(R.string.strip_case_keys)
         }))
+        addView(hintLine(context.getString(R.string.strip_hint_symbols), hintValue().apply {
+            text = context.getString(R.string.strip_symbol_keys)
+        }))
     }
 
     /**
@@ -156,21 +160,21 @@ class MultitapStripView(context: Context) : LinearLayout(context) {
      * everyone else, and this is the surface that exists precisely because the remote itself
      * says nothing.
      */
-    private fun cellText(key: Char, letterCase: LetterCase): String {
+    private fun cellText(key: Char, letterCase: LetterCase, layer: Layer): String {
         if (key == ' ') {
             return ""
         }
         val letters = when (key) {
             '0' -> context.getString(R.string.strip_space)
             '1' -> Keypad.MARKS
-            else -> Keypad.lettersOn(key).map(letterCase::apply).joinToString("")
+            else -> Keypad.runOn(key, layer).map(letterCase::apply).joinToString("")
         }
         return "$key\n$letters"
     }
 
     private fun cell(key: Char): TextView {
         return TextView(context).apply {
-            text = cellText(key, LetterCase.LOWER)
+            text = cellText(key, LetterCase.LOWER, Layer.LETTERS)
             setTextColor(MUTED)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             gravity = Gravity.CENTER
@@ -249,6 +253,11 @@ class MultitapStripView(context: Context) : LinearLayout(context) {
             !state.hasEditor -> context.getString(R.string.strip_no_editor)
             else -> listOf(
                 if (state.digits) context.getString(R.string.strip_digits) else "",
+                if (state.layer == Layer.SYMBOLS) {
+                    context.getString(R.string.strip_symbols)
+                } else {
+                    ""
+                },
                 caseTag,
             ).filter { it.isNotEmpty() }.joinToString(" · ")
         }
@@ -278,7 +287,7 @@ class MultitapStripView(context: Context) : LinearLayout(context) {
         ).filter { it.isNotEmpty() }.joinToString(" · ")
 
         for ((key, view) in keypadCells) {
-            view.text = cellText(key, state.letterCase)
+            view.text = cellText(key, state.letterCase, state.layer)
             view.setTextColor(if (key == state.cycleDigit) ACCENT else MUTED)
         }
     }
@@ -349,6 +358,7 @@ data class StripState(
     val cycleIndex: Int,
     val hintMode: HintMode,
     val letterCase: LetterCase,
+    val layer: Layer,
     val digits: Boolean,
     val hasEditor: Boolean,
     val customKeys: CustomKeys,
