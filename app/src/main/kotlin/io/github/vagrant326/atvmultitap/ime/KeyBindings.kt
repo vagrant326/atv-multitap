@@ -1,0 +1,185 @@
+package io.github.vagrant326.atvmultitap.ime
+
+import android.view.KeyEvent
+
+sealed interface Action {
+
+    /** One of `2`-`9`. Tapped again it replaces its own letter; that is the whole method. */
+    data class Digit(val digit: Char) : Action
+
+    /** Finishes the letter and adds a space. `0` on every phone ever made. */
+    data object Space : Action
+
+    /** Cycles the marks a query actually needs. `1`, again by convention. */
+    data object Punctuation : Action
+
+    /**
+     * Ends the letter in progress so the next press of the same key starts a new one.
+     *
+     * The one key multitap cannot do without. `hello` has `ll` on a single key, and without this
+     * the user sits out a timeout in the middle of a word — the complaint every phone keyboard of
+     * that generation eventually answered with exactly this key.
+     */
+    data object NextLetter : Action
+
+    /**
+     * Steps back one letter in the current key's cycle.
+     *
+     * The cheap way out of an overshoot, which is the characteristic mistake here: the cycles are
+     * long, the taps are fast, and nothing is printed on the remote. Going round again costs six
+     * presses on `9`; this costs one.
+     */
+    data object PreviousLetter : Action
+
+    /** Ends the letter and submits, which for a search box is what OK means. */
+    data object Commit : Action
+
+    /**
+     * The caret, one word at a time, from holding left or right with no letter in progress.
+     *
+     * Held rather than tapped because caret movement is inherently repetitive and a TV query is
+     * eleven characters: as single steps, walking back over one word is most of the query. Only
+     * with no letter in progress — during one, left and right work the cycle, which is the hotter
+     * path by a wide margin.
+     */
+    data class WordJump(val forward: Boolean) : Action
+
+    data object Delete : Action
+
+    /** The rest of the word, from holding delete. The tap already took one character. */
+    data object WordDelete : Action
+
+    /** Digits in one press instead of six, for a field that wants a number. */
+    data object ToggleDigits : Action
+
+    /** Consume the event and do nothing, which is what a key held down past the first repeat
+     *  has to do: a number key that repeated would append letters nobody pressed. */
+    data object Ignore : Action
+}
+
+/**
+ * Custom bindings, because remotes disagree about which keys exist and about what they report.
+ * The user's `TEXT` key sits where a phone has `*` and reports keycode 300, well outside the
+ * standard range — nothing in the app could have guessed that.
+ *
+ * Three, where T9 has five: there is no spelling mode to reach and no language to switch, because
+ * this keyboard has neither. Both remaining conveniences are optional — deleting is `BACK` while
+ * a letter is in progress, and every digit is also the last stop on its own key's cycle. The
+ * trigger is the exception: it cannot be reached any other way, because the keyboard is not on
+ * screen at the moment it is needed.
+ */
+data class CustomKeys(
+    val trigger: Int,
+    val delete: Int,
+    val digits: Int,
+)
+
+object KeyBindings {
+
+    const val NO_KEY = 0
+
+    /**
+     * Keys the keyboard needs for itself, and therefore cannot be assigned as a binding.
+     *
+     * Longer than the equivalent list in H4-Writer, and that is the trade this method makes:
+     * `0`-`9` *are* the keyboard here, so a remote with number keys gets a keyboard and a remote
+     * without one gets nothing. `docs/00-overview.md` §3 relaxes C5 for exactly this reason.
+     *
+     * The whole d-pad is reserved, up and down included. They work the cycle alongside left and
+     * right, and beyond that a keyboard that let one arrow become a function while its three
+     * neighbours still navigated would be a trap rather than a preference.
+     */
+    val RESERVED: Set<Int> = buildSet {
+        addAll(KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9)
+        add(KeyEvent.KEYCODE_DPAD_UP)
+        add(KeyEvent.KEYCODE_DPAD_DOWN)
+        add(KeyEvent.KEYCODE_DPAD_LEFT)
+        add(KeyEvent.KEYCODE_DPAD_RIGHT)
+        add(KeyEvent.KEYCODE_DPAD_CENTER)
+        add(KeyEvent.KEYCODE_ENTER)
+        add(KeyEvent.KEYCODE_BACK)
+        add(KeyEvent.KEYCODE_HOME)
+    }
+
+    /**
+     * @param repeatCount straight from the [KeyEvent]. Only `1` counts as a hold; later repeats
+     *   are swallowed, so one hold is one action rather than a rate. That is what keeps a held
+     *   caret from crossing the whole field — Android repeats at roughly twenty a second.
+     * @param pending whether a letter is in progress. `BACK` and the arrows mean something only
+     *   then — otherwise they belong to whatever is behind the keyboard, and a keyboard that eats
+     *   the d-pad on a TV leaves the whole device unnavigable.
+     * @param digits whether the number keys are typing digits rather than letters.
+     *
+     * Returns null for anything this keyboard has no use for, which the service passes through
+     * untouched rather than consuming.
+     */
+    fun of(
+        keyCode: Int,
+        repeatCount: Int,
+        custom: CustomKeys,
+        pending: Boolean,
+        digits: Boolean,
+    ): Action? {
+        val longPress = repeatCount == 1
+
+        if (longPress) {
+            if (custom.delete != NO_KEY && keyCode == custom.delete) {
+                return Action.WordDelete
+            }
+            return when (keyCode) {
+                KeyEvent.KEYCODE_DPAD_LEFT ->
+                    if (pending) Action.Ignore else Action.WordJump(forward = false)
+
+                KeyEvent.KEYCODE_DPAD_RIGHT ->
+                    if (pending) Action.Ignore else Action.WordJump(forward = true)
+
+                KeyEvent.KEYCODE_DEL -> Action.WordDelete
+                else -> Action.Ignore
+            }
+        }
+
+        if (repeatCount > 0) {
+            return Action.Ignore
+        }
+
+        if (custom.trigger != NO_KEY && keyCode == custom.trigger) {
+            return null // handled before the keyboard is showing; see MultitapImeService
+        }
+        if (custom.delete != NO_KEY && keyCode == custom.delete) {
+            return Action.Delete
+        }
+        if (custom.digits != NO_KEY && keyCode == custom.digits) {
+            return Action.ToggleDigits
+        }
+
+        // In digit mode the row is deterministic: every key is the digit printed on it, and there
+        // is no cycle to step through.
+        if (digits && keyCode in KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9) {
+            return Action.Digit('0' + (keyCode - KeyEvent.KEYCODE_0))
+        }
+
+        return when (keyCode) {
+            in KeyEvent.KEYCODE_2..KeyEvent.KEYCODE_9 ->
+                Action.Digit('0' + (keyCode - KeyEvent.KEYCODE_0))
+
+            KeyEvent.KEYCODE_0 -> Action.Space
+            KeyEvent.KEYCODE_1 -> Action.Punctuation
+
+            // Right ends the letter, left steps back through it. Up and down do the same job, and
+            // so do CHANNEL_UP and CHANNEL_DOWN, which sit beside the numpad on the remotes that
+            // have one — a second way in for a remote whose d-pad is awkward, never the only one.
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_CHANNEL_DOWN,
+            ->
+                if (pending) Action.NextLetter else null
+
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP ->
+                if (pending) Action.PreviousLetter else null
+
+            KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> Action.Commit
+            KeyEvent.KEYCODE_DEL -> Action.Delete
+            KeyEvent.KEYCODE_BACK -> if (pending) Action.Delete else null
+            else -> null
+        }
+    }
+}

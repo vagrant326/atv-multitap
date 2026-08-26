@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name" translatable="false">atv-multitap</string>
+    <string name="ime_name" translatable="false">Multitap</string>
+
+    <string name="subtype_pl" translatable="false">Polski</string>
+    <string name="subtype_en" translatable="false">English</string>
+
+    <string name="capture_no_key" translatable="false">—</string>
+    <string name="update_working" translatable="false">…</string>
+    <string name="update_percent" translatable="false">%1$d%%</string>
+    <string name="update_installing_headline" translatable="false">%1$d kB</string>
+    <string name="update_name">Multitap updates</string>
+
+    <string name="settings_source_url" translatable="false">github.com/vagrant326/atv-multitap</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_source">Source at %1$s</string>
+
+    <string name="settings_section_keyboard">Keyboard</string>
+    <string name="settings_section_buttons">Buttons</string>
+    <string name="settings_section_system">System</string>
+    <string name="settings_section_updates">Updates</string>
+    <string name="settings_section_typing">How to type</string>
+    <string name="settings_section_try">Try it</string>
+    <string name="settings_section_support">Support</string>
+
+    <string name="settings_key_hint">On-screen guide</string>
+    <string name="settings_timeout">Tap window</string>
+    <string name="settings_timeout_note">How long the same key keeps cycling before another tap starts a new letter. Nobody has to wait it out — ▶ ends a letter immediately — so a longer window costs nothing.</string>
+    <string name="timeout_quick">Quick — 0.8 s</string>
+    <string name="timeout_normal">Normal — 1.2 s</string>
+    <string name="timeout_relaxed">Relaxed — 1.8 s</string>
+
+    <string name="settings_buttons_note">Remotes disagree about which buttons exist and about what they report. Press the button you want and it gets recorded. Only the first is worth assigning on most remotes: deleting is BACK while a letter is in progress, and every digit is also the last stop on its own key. Number keys cannot be assigned — they are the keyboard.</string>
+    <string name="settings_binding_row">%1$s: %2$s</string>
+    <string name="settings_binding_unset">not set</string>
+
+    <string name="settings_status_active">In use. Focus a text field and it comes up.</string>
+    <string name="settings_status_enabled">Enabled, but another keyboard is in use. Switch to this one below.</string>
+    <string name="settings_status_disabled">Not enabled yet. Android needs every keyboard turned on by hand — do that below, then switch to it.</string>
+    <string name="settings_system_keyboard">Android keyboard settings</string>
+    <string name="settings_system_keyboard_note">Leaves this app. Enable or switch the active keyboard there.</string>
+    <string name="settings_check_updates">Check for updates</string>
+    <string name="settings_updates_note">The only thing here that uses the network. It runs in a separate process, only when you press it, and sends nothing. This keyboard stores nothing you type in the first place.</string>
+    <string name="settings_support">Support this keyboard</string>
+
+    <string name="settings_typing_note">Number keys carry the letters. Tap 2 once for a, twice for b, three times for c — then ą, then ć, then the digit 2 itself. Every Polish letter is on the key its base letter is on, at the end of the run: ż is 9 tapped six times.\n\n▶ ends the letter, so a doubled one needs no pause in the middle of a word. ◀ steps back if you tapped past the letter you wanted. OK finishes and searches, 0 adds a space, 1 cycles the punctuation a search box needs. BACK drops the letter in progress, then closes the keyboard.\n\nNothing here is predicted, so nothing here can be wrong. The presses for a word are the same today as they will be in a year, and you never have to read the screen to find out what the keyboard did with the last one.</string>
+    <string name="settings_scratch_hint">Type here</string>
+    <string name="settings_scratch_note">Focus this field to bring the keyboard up. Nothing here is saved.</string>
+
+    <string name="binding_trigger">Show the keyboard</string>
+    <string name="binding_trigger_prompt">Press the key that should open the keyboard when it is hidden.</string>
+    <string name="binding_trigger_fallback">Without this the keyboard only appears when an app asks for it, which Netflix and YouTube do not always do.</string>
+    <string name="binding_delete">Delete</string>
+    <string name="binding_delete_prompt">Press the key that should delete.</string>
+    <string name="binding_delete_fallback">BACK already deletes while a letter is in progress.</string>
+    <string name="binding_digits">Digits mode</string>
+    <string name="binding_digits_prompt">Press the key that should switch between letters and digits.</string>
+    <string name="binding_digits_fallback">A field that wants a number switches on its own, and a digit is always the last stop on its own key. This only makes it one press instead of six.</string>
+
+    <string name="capture_choose">Choose button</string>
+    <string name="capture_save">Save</string>
+    <string name="capture_clear">Clear</string>
+    <string name="capture_state_none">NO SELECTION</string>
+    <string name="capture_state_listening">PRESS A BUTTON</string>
+    <string name="capture_state_selected">SELECTED</string>
+    <string name="capture_state_unusable">CANNOT BE USED</string>
+    <string name="capture_state_saved">SAVED</string>
+    <string name="capture_waiting">Waiting…</string>
+    <string name="capture_code">code %1$d</string>
+    <string name="capture_reserved">The keyboard needs this button for typing, so it cannot be assigned. Choose again and press a different one.</string>
+    <string name="capture_assigned_label">ASSIGNED NOW</string>
+    <string name="capture_assigned_none">Nothing</string>
+    <string name="capture_assigned_value">%1$s  ·  code %2$d</string>
+    <string name="capture_footer_idle">BACK returns to settings.</string>
+    <string name="capture_footer_listening">The next button you press is the one taken. BACK cancels.</string>
+    <string name="capture_footer_saved">Saved. BACK returns to settings.</string>
+
+    <string name="strip_idle">Tap 2–9</string>
+    <string name="strip_idle_digits">One press per digit</string>
+    <string name="strip_digits">DIGITS</string>
+    <string name="strip_no_editor">Nothing here takes text. Open a search box first.</string>
+    <string name="strip_space" translatable="false">␣</string>
+
+    <string name="strip_hint_next">Next letter</string>
+    <string name="strip_hint_back">Step back</string>
+    <string name="strip_hint_commit">Accept</string>
+    <string name="strip_hint_delete">Delete</string>
+    <string name="strip_next_keys" translatable="false">▶ ▼ · CH▾</string>
+    <string name="strip_back_keys" translatable="false">◀ ▲ · CH▴</string>
+    <string name="strip_commit_keys">OK · 0 adds a space</string>
+    <string name="strip_fallback_delete">BACK</string>
+
+    <string name="hint_keypad">Key grid</string>
+    <string name="hint_keypad_description">The number keys, the letters on each, and where the taps have got to. The remote has nothing printed on it, so leave this on until you know the layout.</string>
+    <string name="hint_strip">Tap count only</string>
+    <string name="hint_strip_description">Just the run of letters for the key you are tapping. Assumes you know which key carries what.</string>
+    <string name="hint_off">Nothing</string>
+    <string name="hint_off_description">The smallest strip there is. You lose nothing but the tap count — the letter in progress is in the field either way.</string>
+
+    <string name="support_title">Support this keyboard</string>
+    <string name="support_free">Multitap is open source and MIT licensed. It is free, it stays free, and nothing in it is locked away for people who do not pay.</string>
+    <string name="support_thanks">If it has saved you a few thousand trips around an on-screen grid, you can buy me a coffee.</string>
+    <string name="support_scan">Scan with your phone</string>
+    <string name="support_url" translatable="false">ko-fi.com/vagrant326</string>
+    <string name="support_or">or open it yourself</string>
+    <string name="support_back">BACK returns to settings.</string>
+
+    <string name="update_title">Updates</string>
+    <string name="update_subtitle">Multitap installs from its GitHub releases.</string>
+    <string name="update_state_checking">CHECKING</string>
+    <string name="update_state_uptodate">UP TO DATE</string>
+    <string name="update_state_available">AVAILABLE</string>
+    <string name="update_state_none">NOTHING PUBLISHED</string>
+    <string name="update_state_failed">COULD NOT CHECK</string>
+    <string name="update_state_downloading">DOWNLOADING</string>
+    <string name="update_state_installing">INSTALLING</string>
+    <string name="update_state_done">DONE</string>
+    <string name="update_state_error">FAILED</string>
+    <string name="update_state_permission">PERMISSION NEEDED</string>
+    <string name="update_uptodate_body">Nothing newer has been released.</string>
+    <string name="update_none_headline">No releases</string>
+    <string name="update_none_body">This repository has no releases yet.</string>
+    <string name="update_failed_headline">Check failed</string>
+    <string name="update_available_body">Installed %1$s.</string>
+    <string name="update_download">Download and install</string>
+    <string name="update_check_again">Check again</string>
+    <string name="update_try_again">Try again</string>
+    <string name="update_busy">Working…</string>
+    <string name="update_downloading_failed">Download failed</string>
+    <string name="update_installing_body">Handing the file to the system installer.</string>
+    <string name="update_installed_headline">Installed</string>
+    <string name="update_installed_body">Android stops an app when it replaces it, so this screen will close. The keyboard itself keeps working — reopen the app only to change settings.</string>
+    <string name="update_install_failed">Install failed</string>
+    <string name="update_install_status">status %1$d\n%2$s</string>
+    <string name="update_no_detail">no detail</string>
+    <string name="update_start_failed">Could not start the install</string>
+    <string name="update_no_dialog_headline">No confirmation dialog</string>
+    <string name="update_no_dialog_body">The system asked for confirmation but did not say what to show.</string>
+    <string name="update_dialog_failed">Could not open the dialog</string>
+    <string name="update_problem">PROBLEM</string>
+    <string name="update_permission_headline">Allow installing</string>
+    <string name="update_permission_body">Android needs your permission for this app to install packages.</string>
+    <string name="update_permission_open">Open the permission screen</string>
+    <string name="update_install">Install</string>
+    <string name="update_installed_label">INSTALLED</string>
+    <string name="update_privacy">Checked only when you press it. One request for the version, one for the file, nothing sent. What you type never leaves the device, and is never stored on it either.</string>
+    <string name="update_back">BACK returns to settings.</string>
+
+</resources>

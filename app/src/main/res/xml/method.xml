@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="io.github.vagrant326.atvmultitap.settings.SettingsActivity"
+    android:supportsSwitchingToNextInputMethod="true">
+    <!-- Two locales, one layout, and no language state anywhere in the app. E.161 is the same
+         keypad in both alphabets: Polish only adds letters to the end of runs the English
+         letters do not reach. So the system is told this keyboard serves both, and there is
+         nothing for a user to switch. -->
+    <subtype
+        android:imeSubtypeLocale="pl_PL"
+        android:imeSubtypeMode="keyboard"
+        android:label="@string/subtype_pl" />
+    <subtype
+        android:imeSubtypeLocale="en_US"
+        android:imeSubtypeMode="keyboard"
+        android:label="@string/subtype_en" />
+</input-method>
