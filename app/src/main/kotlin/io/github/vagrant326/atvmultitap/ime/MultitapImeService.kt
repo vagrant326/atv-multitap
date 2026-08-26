@@ -403,13 +403,16 @@ class MultitapImeService : InputMethodService() {
      * keys make, on the one key that has no letters.
      */
     private fun punctuate() {
+        // Worked out before [endLetter], which clears the position — that reset is how every
+        // other action breaks the run, and this is the one caller that has to survive it.
+        val next = if (punctuationAt < 0) 0 else (punctuationAt + 1) % Keypad.MARKS.length
         endLetter()
         val connection = currentInputConnection ?: return
-        punctuationAt = if (punctuationAt < 0) 0 else (punctuationAt + 1) % Keypad.MARKS.length
-        if (punctuationAt > 0) {
+        if (next > 0) {
             connection.deleteSurroundingText(1, 0)
         }
-        connection.commitText(Keypad.MARKS[punctuationAt].toString(), 1)
+        connection.commitText(Keypad.MARKS[next].toString(), 1)
+        punctuationAt = next
     }
 
     private fun render() {
