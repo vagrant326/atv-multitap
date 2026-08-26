@@ -138,9 +138,10 @@ object KeyBindings {
      * `0`-`9` *are* the keyboard here, so a remote with number keys gets a keyboard and a remote
      * without one gets nothing. `docs/00-overview.md` §3 relaxes C5 for exactly this reason.
      *
-     * The whole d-pad is reserved, up and down included. They work the cycle alongside left and
-     * right, and beyond that a keyboard that let one arrow become a function while its three
-     * neighbours still navigated would be a trap rather than a preference.
+     * The whole d-pad is reserved, up and down included. Up deletes, left and right are the caret
+     * and the cycle, and down is deliberately inert — and beyond any of that, a keyboard that let
+     * one arrow become a function while its three neighbours still navigated would be a trap
+     * rather than a preference.
      */
     val RESERVED: Set<Int> = buildSet {
         addAll(KeyEvent.KEYCODE_0..KeyEvent.KEYCODE_9)
@@ -158,9 +159,11 @@ object KeyBindings {
      * @param repeatCount straight from the [KeyEvent]. Only `1` counts as a hold; later repeats
      *   are swallowed, so one hold is one action rather than a rate. That is what keeps a held
      *   caret from crossing the whole field — Android repeats at roughly twenty a second.
-     * @param pending whether a letter is in progress. `BACK` and the arrows mean something only
-     *   then — otherwise they belong to whatever is behind the keyboard, and a keyboard that eats
-     *   the d-pad on a TV leaves the whole device unnavigable.
+     * @param pending whether a letter is in progress. `BACK` and the left and right arrows mean
+     *   something only then — otherwise they belong to whatever is behind the keyboard, which is
+     *   how the caret still works and how `BACK` still dismisses. That passthrough is also the
+     *   escape hatch: a keyboard that ate the whole d-pad on a TV would leave the device
+     *   unnavigable.
      * @param digits whether the number keys are typing digits rather than letters.
      *
      * Returns null for anything this keyboard has no use for, which the service passes through
@@ -223,15 +226,27 @@ object KeyBindings {
 
             KeyEvent.KEYCODE_0, KeyEvent.KEYCODE_1 -> Action.DeferToRelease(keyCode)
 
-            // Right ends the letter, left steps back through it. Up and down do the same job, and
-            // so do CHANNEL_UP and CHANNEL_DOWN, which sit beside the numpad on the remotes that
-            // have one — a second way in for a remote whose d-pad is awkward, never the only one.
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_DPAD_DOWN,
-            KeyEvent.KEYCODE_CHANNEL_DOWN,
-            ->
-                if (pending) Action.NextLetter else null
+            // Right ends the letter and otherwise belongs to the editor, which moves the caret
+            // with it — the same thing a right arrow does everywhere else on the device.
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (pending) Action.NextLetter else null
 
-            KeyEvent.KEYCODE_CHANNEL_UP -> if (pending) Action.PreviousLetter else null
+            // Down ends the letter and otherwise does nothing at all, and unlike right it is
+            // consumed either way.
+            //
+            // Left and right are passed through on purpose: the editor moves the caret with them
+            // and that is what the user wanted. Down has no such job — a single-line field has no
+            // caret to move downwards, so passing it through only throws the focus out of the
+            // field. Which made the vertical axis read as broken: up quietly deleted a character
+            // while down scrolled the whole screen away, two unrelated outcomes on one rocker.
+            //
+            // CHANNEL_UP and CHANNEL_DOWN go the same way for the same reason, and one more: they
+            // sit beside the numpad and are documented here as keyboard keys, so leaving them to
+            // fall through meant a stray press could change channel in the middle of a word.
+            KeyEvent.KEYCODE_DPAD_DOWN, KeyEvent.KEYCODE_CHANNEL_DOWN ->
+                if (pending) Action.NextLetter else Action.Ignore
+
+            KeyEvent.KEYCODE_CHANNEL_UP ->
+                if (pending) Action.PreviousLetter else Action.Ignore
 
             // Left is the caret, always. While a letter is in progress it is settled first and
             // the arrow forwarded, so the composing region is never left behind somewhere the
