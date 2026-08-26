@@ -2,12 +2,16 @@ package io.github.vagrant326.atvmultitap.ime
 
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
 import io.github.vagrant326.atvmultitap.core.Keypad
+import io.github.vagrant326.atvmultitap.core.Layer
+import io.github.vagrant326.atvmultitap.core.LetterCase
 import io.github.vagrant326.atvmultitap.core.Multitap
 import io.github.vagrant326.atvmultitap.core.Press
 import io.github.vagrant326.atvmultitap.settings.Preferences
@@ -45,6 +49,38 @@ class MultitapImeService : InputMethodService() {
      */
     private var digits = false
 
+    /**
+     * Applied where characters are written rather than inside [Multitap], which stays a question
+     * about position in a cycle. `a` and `A` are the same stop on key `2`; the case is what the
+     * field is told, not where the taps have got to.
+     */
+    private var letterCase = LetterCase.LOWER
+
+    /** The key whose meaning is waiting on its release. See [Action.DeferToRelease]. */
+    private var deferredKey = KeyEvent.KEYCODE_UNKNOWN
+
+    private val clock = Handler(Looper.getMainLooper())
+
+    /**
+     * Says on screen what the engine already believes: this letter is finished.
+     *
+     * Without it the timeout is invisible. [Multitap] only compares timestamps when a key
+     * arrives, so nothing happened when the window closed — the character stayed underlined, the
+     * run of letters stayed on the strip and the key stayed lit, all of it advertising a letter
+     * the next press was going to treat as closed. On a keyboard whose entire claim is that you
+     * never have to look at the screen to know what happened, an indicator that lies about the
+     * one ambiguous moment in the method is worse than no indicator.
+     *
+     * Settling is all three signals at once: [endLetter] ends the composing region, which drops
+     * the underline, and clears the active digit, which empties the strip and unlights the grid.
+     * It also hands the d-pad back — while a letter is pending the arrows are the cycle, so
+     * before this the keyboard went on swallowing them long after it had any use for them.
+     */
+    private val lapse = Runnable {
+        endLetter()
+        render()
+    }
+
     override fun onCreate() {
         super.onCreate()
         preferences = Preferences(this)
@@ -57,9 +93,16 @@ class MultitapImeService : InputMethodService() {
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
         super.onStartInput(info, restarting)
+        clock.removeCallbacks(lapse)
         multitap.settle()
         multitap.timeoutMillis = preferences.letterTimeout
         punctuationAt = -1
+        deferredKey = KeyEvent.KEYCODE_UNKNOWN
+
+        // Like the digit mode below, the case and the layer belong to the field and not to the
+        // app: neither a lock nor a half-used symbol layer may follow the user into the next box.
+        letterCase = LetterCase.LOWER
+        multitap.use(Layer.LETTERS)
 
         // A field that wants a number gets digits without being asked. Anything else starts in
         // letters even if the mode was left on: the mode belongs to the field, not to the app.
@@ -83,9 +126,15 @@ class MultitapImeService : InputMethodService() {
      * already showing.
      */
     override fun onFinishInput() {
+        clock.removeCallbacks(lapse)
         multitap.settle()
         currentInputConnection?.finishComposingText()
         super.onFinishInput()
+    }
+
+    override fun onDestroy() {
+        clock.removeCallbacks(lapse)
+        super.onDestroy()
     }
 
     /**
@@ -132,6 +181,24 @@ class MultitapImeService : InputMethodService() {
         return handle(action)
     }
 
+    /**
+     * `0` and `1` commit nothing until they are released, because they are the two keys that mean
+     * two things each — a space or the case switch, a mark or the symbol layer.
+     *
+     * Android delivers a hold as a second key-down, so a character written on the way down is
+     * already in the field by the time the hold announces itself — and taking it back is visible
+     * in a field the user is looking at. `2`-`9` need no deferral: they only set composing text,
+     * which a hold can replace for nothing.
+     */
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode != deferredKey) {
+            return super.onKeyUp(keyCode, event)
+        }
+        val released = deferredKey
+        deferredKey = KeyEvent.KEYCODE_UNKNOWN
+        return handle(if (released == KeyEvent.KEYCODE_1) Action.Punctuation else Action.Space)
+    }
+
     private fun handle(action: Action): Boolean {
         when (action) {
             is Action.Ignore -> Unit
@@ -141,17 +208,78 @@ class MultitapImeService : InputMethodService() {
                     endLetter()
                     currentInputConnection?.commitText(action.digit.toString(), 1)
                 } else {
-                    multitap.press(action.digit, System.currentTimeMillis())?.let(::show)
+                    val now = System.currentTimeMillis()
+                    // The symbol layer is spent by one symbol, and the press that finishes a
+                    // symbol is already the *next* character — so the layer has to go back
+                    // before the press rather than after it, or the letter the user meant would
+                    // come out of the symbol run. A second tap of the same key still cycles,
+                    // which is what lets `#` be two taps of `4`.
+                    if (multitap.layer == Layer.SYMBOLS && multitap.wouldSettle(action.digit, now)) {
+                        endLetter()
+                    }
+                    multitap.press(action.digit, now)?.let { press ->
+                        show(press)
+                        // Armed from the press and from nothing else, because that is what
+                        // [Multitap] measures from. Stepping back does not push it out: the
+                        // engine's window closes at a fixed distance from the last press
+                        // whatever else happens, and a strip that outlived it would be telling
+                        // the same lie this whole mechanism exists to stop.
+                        clock.removeCallbacks(lapse)
+                        clock.postDelayed(lapse, multitap.timeoutMillis)
+                    }
                 }
             }
 
             is Action.NextLetter -> endLetter()
 
+            /**
+             * Settles the letter and forwards the arrow, rather than computing a new selection.
+             * The editor owns the text and the caret, and asking it to move is the only version
+             * that stays correct in a field this keyboard did not fill.
+             */
+            is Action.CaretLeft -> {
+                endLetter()
+                sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+            }
+
             is Action.PreviousLetter -> {
                 multitap.back()?.let { letter ->
                     punctuationAt = -1
-                    currentInputConnection?.setComposingText(letter.toString(), 1)
+                    currentInputConnection?.setComposingText(cased(letter), 1)
                 }
+            }
+
+            /**
+             * The letter in progress is still the composing region, so the switch applies to it
+             * as well as to what follows. Pressing the case key *after* seeing the wrong case is
+             * the order people actually press them in, and making that a delete-and-retype
+             * instead of one press would waste the only advantage a composing region has.
+             */
+            is Action.ToggleCase -> {
+                // The hold has claimed the press, so the release must not also write a space.
+                deferredKey = KeyEvent.KEYCODE_UNKNOWN
+                letterCase = letterCase.next()
+                multitap.letter?.let { letter ->
+                    currentInputConnection?.setComposingText(cased(letter), 1)
+                }
+            }
+
+            is Action.DeferToRelease -> deferredKey = action.keyCode
+
+            /**
+             * One symbol and back to letters, so the layer cannot be left on by mistake.
+             * Switching settles whatever is in progress: the character in flight is a position
+             * in a run, and a position that outlived the run changing would come back as a
+             * different character than the one on screen.
+             */
+            is Action.ToggleSymbols -> {
+                deferredKey = KeyEvent.KEYCODE_UNKNOWN
+                // Read before [endLetter], which returns the layer to letters on its way out.
+                // Asking afterwards would find letters every time and the layer could be entered
+                // but never left.
+                val next = if (multitap.layer == Layer.SYMBOLS) Layer.LETTERS else Layer.SYMBOLS
+                endLetter()
+                multitap.use(next)
             }
 
             is Action.Space -> {
@@ -206,18 +334,41 @@ class MultitapImeService : InputMethodService() {
                 deleteWord()
             }
         }
+        // Delete drops the letter without settling it, so the timer goes with it rather than
+        // firing later over a letter that is no longer there.
+        if (!multitap.isPending) {
+            clock.removeCallbacks(lapse)
+        }
         render()
         return true
     }
+
+    private fun cased(letter: Char): String = letterCase.apply(letter).toString()
 
     /** Hands the finished letter to the editor and puts the new one in the composing region. */
     private fun show(press: Press) {
         punctuationAt = -1
         val connection = currentInputConnection ?: return
-        if (press.settled != null) {
+        val settled = press.settled
+        if (settled != null) {
             connection.finishComposingText()
+            spendCase(settled)
         }
-        connection.setComposingText(press.pending.toString(), 1)
+        connection.setComposingText(cased(press.pending), 1)
+    }
+
+    /**
+     * A one-off capital is spent by the letter that used it, and by nothing else.
+     *
+     * [Multitap] reports the settled character in lower case whatever went into the field, so
+     * this is asking what the user typed, not what it looks like. The digit on the end of a
+     * key's cycle is not a letter and does not spend the state — reaching `2` by tapping past
+     * `abcąć` would otherwise swallow a capital and give a character that cannot show one.
+     */
+    private fun spendCase(settled: Char) {
+        if (settled.isLetter()) {
+            letterCase = letterCase.afterLetter()
+        }
     }
 
     /**
@@ -228,9 +379,15 @@ class MultitapImeService : InputMethodService() {
      */
     private fun endLetter() {
         punctuationAt = -1
-        if (multitap.settle() != null) {
-            currentInputConnection?.finishComposingText()
-        }
+        val settled = multitap.settle() ?: return
+        clock.removeCallbacks(lapse)
+        currentInputConnection?.finishComposingText()
+        spendCase(settled)
+
+        // A symbol that has reached the field has spent the layer, exactly as a capital spends
+        // the one-off case. Only a character spends it: holding `1` and then pressing space or
+        // delete settles nothing, so the layer survives and the user has not silently lost it.
+        multitap.use(Layer.LETTERS)
     }
 
     /**
@@ -279,13 +436,16 @@ class MultitapImeService : InputMethodService() {
      * keys make, on the one key that has no letters.
      */
     private fun punctuate() {
+        // Worked out before [endLetter], which clears the position — that reset is how every
+        // other action breaks the run, and this is the one caller that has to survive it.
+        val next = if (punctuationAt < 0) 0 else (punctuationAt + 1) % Keypad.MARKS.length
         endLetter()
         val connection = currentInputConnection ?: return
-        punctuationAt = if (punctuationAt < 0) 0 else (punctuationAt + 1) % Keypad.MARKS.length
-        if (punctuationAt > 0) {
+        if (next > 0) {
             connection.deleteSurroundingText(1, 0)
         }
-        connection.commitText(Keypad.MARKS[punctuationAt].toString(), 1)
+        connection.commitText(Keypad.MARKS[next].toString(), 1)
+        punctuationAt = next
     }
 
     private fun render() {
@@ -295,10 +455,12 @@ class MultitapImeService : InputMethodService() {
         val digit = multitap.activeDigit
         strip.render(
             StripState(
-                cycle = digit?.let { Keypad.cycleOf(it) }.orEmpty(),
+                cycle = digit?.let { Keypad.cycleOf(it, multitap.layer) }.orEmpty(),
                 cycleDigit = digit,
                 cycleIndex = multitap.activeIndex,
                 hintMode = preferences.hintMode,
+                letterCase = letterCase,
+                layer = multitap.layer,
                 digits = digits,
                 hasEditor = currentInputConnection != null,
                 customKeys = preferences.customKeys,

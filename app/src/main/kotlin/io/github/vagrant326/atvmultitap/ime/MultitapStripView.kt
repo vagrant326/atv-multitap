@@ -14,6 +14,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import io.github.vagrant326.atvmultitap.R
 import io.github.vagrant326.atvmultitap.core.Keypad
+import io.github.vagrant326.atvmultitap.core.Layer
+import io.github.vagrant326.atvmultitap.core.LetterCase
 import io.github.vagrant326.atvmultitap.settings.HintMode
 
 /**
@@ -88,6 +90,12 @@ class MultitapStripView(context: Context) : LinearLayout(context) {
             text = context.getString(R.string.strip_commit_keys)
         }))
         addView(hintLine(context.getString(R.string.strip_hint_delete), deleteValue))
+        addView(hintLine(context.getString(R.string.strip_hint_case), hintValue().apply {
+            text = context.getString(R.string.strip_case_keys)
+        }))
+        addView(hintLine(context.getString(R.string.strip_hint_symbols), hintValue().apply {
+            text = context.getString(R.string.strip_symbol_keys)
+        }))
     }
 
     /**
@@ -144,15 +152,29 @@ class MultitapStripView(context: Context) : LinearLayout(context) {
         }
     }
 
-    private fun cell(key: Char): TextView {
+    /**
+     * What one cell says, in the case that is currently in force.
+     *
+     * The grid is where the case is legible rather than merely announced. A tag reading `ABC`
+     * tells a user who already knows what the tag means; eight cells reading `ABCĄĆ` tell
+     * everyone else, and this is the surface that exists precisely because the remote itself
+     * says nothing.
+     */
+    private fun cellText(key: Char, letterCase: LetterCase, layer: Layer): String {
+        if (key == ' ') {
+            return ""
+        }
         val letters = when (key) {
-            ' ' -> ""
             '0' -> context.getString(R.string.strip_space)
             '1' -> Keypad.MARKS
-            else -> Keypad.lettersOn(key)
+            else -> Keypad.runOn(key, layer).map(letterCase::apply).joinToString("")
         }
+        return "$key\n$letters"
+    }
+
+    private fun cell(key: Char): TextView {
         return TextView(context).apply {
-            text = if (key == ' ') "" else "$key\n$letters"
+            text = cellText(key, LetterCase.LOWER, Layer.LETTERS)
             setTextColor(MUTED)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
             gravity = Gravity.CENTER
@@ -209,17 +231,35 @@ class MultitapStripView(context: Context) : LinearLayout(context) {
             cycle.addView(keyBadge(state.cycleDigit))
             state.cycle.forEachIndexed { index, letter ->
                 cycle.addView(
-                    stop(letter, reached = index == state.cycleIndex, passed = index < state.cycleIndex)
+                    stop(
+                        state.letterCase.apply(letter),
+                        reached = index == state.cycleIndex,
+                        passed = index < state.cycleIndex,
+                    )
                 )
             }
         }
 
+        // Named as well as drawn, because the two hint modes below the default hide the grid and
+        // a locked case has to survive turning the grid off.
+        val caseTag = when (state.letterCase) {
+            LetterCase.LOWER -> ""
+            LetterCase.ONCE -> context.getString(R.string.strip_case_once)
+            LetterCase.LOCKED -> context.getString(R.string.strip_case_locked)
+        }
         val message = when {
             // Says so rather than looking broken: raised by the trigger over an app that never
             // asked for input, there is nowhere to send characters.
             !state.hasEditor -> context.getString(R.string.strip_no_editor)
-            state.digits -> context.getString(R.string.strip_digits)
-            else -> ""
+            else -> listOf(
+                if (state.digits) context.getString(R.string.strip_digits) else "",
+                if (state.layer == Layer.SYMBOLS) {
+                    context.getString(R.string.strip_symbols)
+                } else {
+                    ""
+                },
+                caseTag,
+            ).filter { it.isNotEmpty() }.joinToString(" · ")
         }
         status.text = message
         status.visibility = if (message.isEmpty()) GONE else VISIBLE
@@ -237,12 +277,17 @@ class MultitapStripView(context: Context) : LinearLayout(context) {
             return
         }
 
-        deleteValue.text = keyLabel(
-            state.customKeys.delete,
-            context.getString(R.string.strip_fallback_delete),
-        )
+        // `▲` first and always, because it is the route that does not depend on the user having
+        // been into the settings. An assigned key is listed after it rather than instead of it —
+        // the old version showed the binding alone, which hid the only unconditional way to
+        // delete from precisely the users who had not found it.
+        deleteValue.text = listOf(
+            context.getString(R.string.strip_delete_keys),
+            keyLabel(state.customKeys.delete, ""),
+        ).filter { it.isNotEmpty() }.joinToString(" · ")
 
         for ((key, view) in keypadCells) {
+            view.text = cellText(key, state.letterCase, state.layer)
             view.setTextColor(if (key == state.cycleDigit) ACCENT else MUTED)
         }
     }
@@ -312,6 +357,8 @@ data class StripState(
     val cycleDigit: Char?,
     val cycleIndex: Int,
     val hintMode: HintMode,
+    val letterCase: LetterCase,
+    val layer: Layer,
     val digits: Boolean,
     val hasEditor: Boolean,
     val customKeys: CustomKeys,

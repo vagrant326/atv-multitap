@@ -33,6 +33,9 @@ class Multitap(var timeoutMillis: Long = DEFAULT_TIMEOUT) {
     private var index = 0
     private var lastAt = Long.MIN_VALUE
 
+    var layer = Layer.LETTERS
+        private set
+
     /** The key the letter in progress came from, or null when no letter is in progress. */
     val activeDigit: Char? get() = digit
 
@@ -41,7 +44,37 @@ class Multitap(var timeoutMillis: Long = DEFAULT_TIMEOUT) {
 
     val isPending: Boolean get() = digit != null
 
-    val letter: Char? get() = digit?.let { Keypad.cycleOf(it).getOrNull(index) }
+    val letter: Char? get() = digit?.let { Keypad.cycleOf(it, layer).getOrNull(index) }
+
+    /**
+     * Swaps the run every key carries, finishing anything in progress first.
+     *
+     * Settling is not optional: the character in progress is a position in a run, and a position
+     * that survived the run changing would come back as a different character than the one on
+     * screen. Named after `Coder.use` in H4-Writer, which swaps a code tree for the same reason.
+     */
+    fun use(layer: Layer): Char? {
+        if (layer == this.layer) {
+            return null
+        }
+        val finished = settle()
+        this.layer = layer
+        return finished
+    }
+
+    /**
+     * Whether pressing [digit] now would finish the character in progress rather than cycle it.
+     *
+     * Asked by the caller when the answer changes what the press means — the symbol layer is
+     * spent by one symbol, so the press that ends a symbol is already a letter press and the
+     * layer has to be put back *before* it rather than after. Shares [continues] with [press] so
+     * the two can never disagree about where the window closes.
+     */
+    fun wouldSettle(digit: Char, atMillis: Long): Boolean =
+        isPending && !continues(digit, atMillis)
+
+    private fun continues(digit: Char, atMillis: Long): Boolean =
+        digit == this.digit && atMillis - lastAt <= timeoutMillis
 
     /**
      * Registers one press of a number key, or null if that key carries nothing.
@@ -52,11 +85,11 @@ class Multitap(var timeoutMillis: Long = DEFAULT_TIMEOUT) {
      * wait it out.
      */
     fun press(digit: Char, atMillis: Long): Press? {
-        val cycle = Keypad.cycleOf(digit)
+        val cycle = Keypad.cycleOf(digit, layer)
         if (cycle.isEmpty()) {
             return null
         }
-        if (digit == this.digit && atMillis - lastAt <= timeoutMillis) {
+        if (continues(digit, atMillis)) {
             index = (index + 1) % cycle.length
             lastAt = atMillis
             return Press(settled = null, pending = cycle[index])
@@ -78,7 +111,7 @@ class Multitap(var timeoutMillis: Long = DEFAULT_TIMEOUT) {
      * else.
      */
     fun back(): Char? {
-        val cycle = Keypad.cycleOf(digit ?: return null)
+        val cycle = Keypad.cycleOf(digit ?: return null, layer)
         index = (index - 1 + cycle.length) % cycle.length
         return cycle[index]
     }

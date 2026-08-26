@@ -54,7 +54,7 @@
     <string name="binding_trigger_fallback">Without this the keyboard only appears when an app asks for it, which Netflix and YouTube do not always do.</string>
     <string name="binding_delete">Delete</string>
     <string name="binding_delete_prompt">Press the key that should delete.</string>
-    <string name="binding_delete_fallback">BACK already deletes while a letter is in progress.</string>
+    <string name="binding_delete_fallback">Up already deletes, and always does. Assign a key only if you would rather not reach for the d-pad.</string>
     <string name="binding_digits">Digits mode</string>
     <string name="binding_digits_prompt">Press the key that should switch between letters and digits.</string>
     <string name="binding_digits_fallback">A field that wants a number switches on its own, and a digit is always the last stop on its own key. This only makes it one press instead of six.</string>
@@ -87,10 +87,17 @@
     <string name="strip_hint_back">Step back</string>
     <string name="strip_hint_commit">Accept</string>
     <string name="strip_hint_delete">Delete</string>
+    <string name="strip_hint_case">Capitals</string>
+    <string name="strip_case_keys">Hold 0 · once, then locked</string>
+    <string name="strip_hint_symbols">Marks</string>
+    <string name="strip_symbol_keys">Hold 1 · all 32, one shot</string>
+    <string name="strip_symbols" translatable="false">!@#</string>
+    <string name="strip_case_once" translatable="false">Abc</string>
+    <string name="strip_case_locked" translatable="false">ABC</string>
     <string name="strip_next_keys" translatable="false">▶ ▼ · CH▾</string>
-    <string name="strip_back_keys" translatable="false">◀ ▲ · CH▴</string>
+    <string name="strip_back_keys" translatable="false">CH▴</string>
     <string name="strip_commit_keys">OK · 0 adds a space</string>
-    <string name="strip_fallback_delete">BACK</string>
+    <string name="strip_delete_keys" translatable="false">▲</string>
 
     <string name="hint_keypad">Key grid</string>
     <string name="hint_keypad_description">The number keys, the letters on each, and where the taps have got to. The remote has nothing printed on it, so leave this on until you know the layout.</string>

@@ -40,10 +40,46 @@ object Keypad {
         '9' to "wxyzźż",
     )
 
+    /**
+     * Every printable mark on a QWERTY keyboard, four to a key.
+     *
+     * All thirty-two rather than the twenty-five [MARKS] leaves out, so there is one rule to
+     * learn — this layer is the whole set, and key `1` is a shortcut to the seven a television
+     * query actually uses. A layer holding "the leftovers" would be a list nobody could predict
+     * the contents of.
+     *
+     * Grouped by kind, and the grouping is the feature. Nothing is printed on the remote, so the
+     * legend on screen is the only place these can be found, and a reader scanning eight cells
+     * for a bracket does better with brackets kept together than with any frequency order. Within
+     * a group the commonest goes first, so the marks a password or an address actually needs —
+     * `@`, `!`, `-`, `.` — are one tap each.
+     *
+     * Exactly four per key is not a coincidence worth relying on, but it does mean no symbol
+     * costs more than four taps.
+     */
+    private val SYMBOLS = mapOf(
+        '2' to ".,;:",
+        '3' to "!?'\"",
+        '4' to "@#/\\",
+        '5' to "$%&*",
+        '6' to "()<>",
+        '7' to "[]{}",
+        '8' to "-_+=",
+        '9' to "`~^|",
+    )
+
     private val BY_LETTER: Map<Char, Char> =
         KEYS.entries.flatMap { (digit, letters) -> letters.map { it to digit } }.toMap()
 
     fun lettersOn(digit: Char): String = KEYS[digit] ?: ""
+
+    fun symbolsOn(digit: Char): String = SYMBOLS[digit] ?: ""
+
+    /** What [layer] puts on [digit], before the digit itself is appended by [cycleOf]. */
+    fun runOn(digit: Char, layer: Layer): String = when (layer) {
+        Layer.LETTERS -> lettersOn(digit)
+        Layer.SYMBOLS -> symbolsOn(digit)
+    }
 
     /**
      * What repeated presses of [digit] actually produce, which is the letters and then the digit
@@ -54,9 +90,14 @@ object Keypad {
      * complete method — and every phone this muscle memory came from put the digit exactly
      * there. It also means the digit mode is a convenience rather than the only way to type `2`.
      */
-    fun cycleOf(digit: Char): String {
-        val letters = KEYS[digit] ?: return ""
-        return letters + digit
+    fun cycleOf(digit: Char, layer: Layer = Layer.LETTERS): String {
+        val run = runOn(digit, layer)
+        if (run.isEmpty()) {
+            return ""
+        }
+        // Only the letter layer carries the digit at the end. In the symbol layer it would be a
+        // third route to a character that already has two, paid for by every symbol behind it.
+        return if (layer == Layer.LETTERS) run + digit else run
     }
 
     fun digitOf(letter: Char): Char? = BY_LETTER[letter.lowercaseChar()]
