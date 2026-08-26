@@ -2,6 +2,8 @@ package io.github.vagrant326.atvmultitap.ime
 
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.View
@@ -56,6 +58,28 @@ class MultitapImeService : InputMethodService() {
     /** The key whose meaning is waiting on its release. See [Action.DeferToRelease]. */
     private var deferredKey = KeyEvent.KEYCODE_UNKNOWN
 
+    private val clock = Handler(Looper.getMainLooper())
+
+    /**
+     * Says on screen what the engine already believes: this letter is finished.
+     *
+     * Without it the timeout is invisible. [Multitap] only compares timestamps when a key
+     * arrives, so nothing happened when the window closed — the character stayed underlined, the
+     * run of letters stayed on the strip and the key stayed lit, all of it advertising a letter
+     * the next press was going to treat as closed. On a keyboard whose entire claim is that you
+     * never have to look at the screen to know what happened, an indicator that lies about the
+     * one ambiguous moment in the method is worse than no indicator.
+     *
+     * Settling is all three signals at once: [endLetter] ends the composing region, which drops
+     * the underline, and clears the active digit, which empties the strip and unlights the grid.
+     * It also hands the d-pad back — while a letter is pending the arrows are the cycle, so
+     * before this the keyboard went on swallowing them long after it had any use for them.
+     */
+    private val lapse = Runnable {
+        endLetter()
+        render()
+    }
+
     override fun onCreate() {
         super.onCreate()
         preferences = Preferences(this)
@@ -68,6 +92,7 @@ class MultitapImeService : InputMethodService() {
 
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
         super.onStartInput(info, restarting)
+        clock.removeCallbacks(lapse)
         multitap.settle()
         multitap.timeoutMillis = preferences.letterTimeout
         punctuationAt = -1
@@ -99,9 +124,15 @@ class MultitapImeService : InputMethodService() {
      * already showing.
      */
     override fun onFinishInput() {
+        clock.removeCallbacks(lapse)
         multitap.settle()
         currentInputConnection?.finishComposingText()
         super.onFinishInput()
+    }
+
+    override fun onDestroy() {
+        clock.removeCallbacks(lapse)
+        super.onDestroy()
     }
 
     /**
@@ -174,7 +205,16 @@ class MultitapImeService : InputMethodService() {
                     endLetter()
                     currentInputConnection?.commitText(action.digit.toString(), 1)
                 } else {
-                    multitap.press(action.digit, System.currentTimeMillis())?.let(::show)
+                    multitap.press(action.digit, System.currentTimeMillis())?.let { press ->
+                        show(press)
+                        // Armed from the press and from nothing else, because that is what
+                        // [Multitap] measures from. Stepping back does not push it out: the
+                        // engine's window closes at a fixed distance from the last press
+                        // whatever else happens, and a strip that outlived it would be telling
+                        // the same lie this whole mechanism exists to stop.
+                        clock.removeCallbacks(lapse)
+                        clock.postDelayed(lapse, multitap.timeoutMillis)
+                    }
                 }
             }
 
@@ -256,6 +296,11 @@ class MultitapImeService : InputMethodService() {
                 deleteWord()
             }
         }
+        // Delete drops the letter without settling it, so the timer goes with it rather than
+        // firing later over a letter that is no longer there.
+        if (!multitap.isPending) {
+            clock.removeCallbacks(lapse)
+        }
         render()
         return true
     }
@@ -297,6 +342,7 @@ class MultitapImeService : InputMethodService() {
     private fun endLetter() {
         punctuationAt = -1
         val settled = multitap.settle() ?: return
+        clock.removeCallbacks(lapse)
         currentInputConnection?.finishComposingText()
         spendCase(settled)
     }
