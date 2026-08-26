@@ -43,7 +43,7 @@
     <string name="binding_trigger_fallback">Bez niego klawiatura pojawia się tylko wtedy, kiedy aplikacja o nią poprosi — a Netflix i YouTube nie zawsze proszą.</string>
     <string name="binding_delete">Usuwanie</string>
     <string name="binding_delete_prompt">Naciśnij klawisz, którym chcesz usuwać.</string>
-    <string name="binding_delete_fallback">BACK i tak usuwa, dopóki litera jest w trakcie pisania.</string>
+    <string name="binding_delete_fallback">Góra i tak kasuje, zawsze. Przypisz klawisz tylko wtedy, gdy wolisz nie sięgać po d-pad.</string>
     <string name="binding_digits">Tryb cyfr</string>
     <string name="binding_digits_prompt">Naciśnij klawisz, który ma przełączać między literami a cyframi.</string>
     <string name="binding_digits_fallback">Pole, które chce liczby, przełącza się samo, a cyfra jest zawsze ostatnim przystankiem na swoim klawiszu. To tylko skraca ją z sześciu naciśnięć do jednego.</string>
@@ -78,7 +78,6 @@
     <string name="strip_hint_case">Wielkie</string>
     <string name="strip_case_keys">Przytrzymaj 0 · raz, potem na stałe</string>
     <string name="strip_commit_keys">OK · 0 dodaje spację</string>
-    <string name="strip_fallback_delete">BACK</string>
 
     <string name="hint_keypad">Siatka klawiszy</string>
     <string name="hint_keypad_description">Klawisze z cyframi, litery na każdym z nich i to, dokąd doszły naciśnięcia. Na pilocie nic nie jest nadrukowane, więc zostaw włączone, dopóki nie znasz układu.</string>

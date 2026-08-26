@@ -88,10 +88,10 @@ sealed interface Action {
  * standard range — nothing in the app could have guessed that.
  *
  * Three, where T9 has five: there is no spelling mode to reach and no language to switch, because
- * this keyboard has neither. Both remaining conveniences are optional — deleting is `BACK` while
- * a letter is in progress, and every digit is also the last stop on its own key's cycle. The
- * trigger is the exception: it cannot be reached any other way, because the keyboard is not on
- * screen at the moment it is needed.
+ * this keyboard has neither. Both remaining conveniences are optional — deleting is `DPAD_UP`
+ * unconditionally, and every digit is also the last stop on its own key's cycle. The trigger is
+ * the exception: it cannot be reached any other way, because the keyboard is not on screen at
+ * the moment it is needed.
  */
 data class CustomKeys(
     val trigger: Int,
@@ -162,7 +162,7 @@ object KeyBindings {
                 KeyEvent.KEYCODE_DPAD_RIGHT ->
                     if (pending) Action.Ignore else Action.WordJump(forward = true)
 
-                KeyEvent.KEYCODE_DEL -> Action.WordDelete
+                KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DEL -> Action.WordDelete
                 else -> Action.Ignore
             }
         }
@@ -202,8 +202,20 @@ object KeyBindings {
             ->
                 if (pending) Action.NextLetter else null
 
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_CHANNEL_UP ->
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_CHANNEL_UP ->
                 if (pending) Action.PreviousLetter else null
+
+            // Up deletes, whether or not a letter is in progress, and it is the only route that
+            // is always there. The other three are conditional in ways a user cannot see: the
+            // assigned key needs a spare button and a trip through the settings, `KEYCODE_DEL`
+            // needs a remote that has one and a television remote does not, and `BACK` only
+            // deletes while a letter is in progress, which is a window rather than something a
+            // user can rely on being in.
+            //
+            // Up because that is what up already means in H4-Writer's edit mode. It cost the
+            // duplicate of the step-back that also sits on left, which is the cheapest thing on
+            // the d-pad to give away.
+            KeyEvent.KEYCODE_DPAD_UP -> Action.Delete
 
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> Action.Commit
             KeyEvent.KEYCODE_DEL -> Action.Delete

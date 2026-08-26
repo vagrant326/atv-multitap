@@ -268,10 +268,14 @@ class MultitapStripView(context: Context) : LinearLayout(context) {
             return
         }
 
-        deleteValue.text = keyLabel(
-            state.customKeys.delete,
-            context.getString(R.string.strip_fallback_delete),
-        )
+        // `▲` first and always, because it is the route that does not depend on the user having
+        // been into the settings. An assigned key is listed after it rather than instead of it —
+        // the old version showed the binding alone, which hid the only unconditional way to
+        // delete from precisely the users who had not found it.
+        deleteValue.text = listOf(
+            context.getString(R.string.strip_delete_keys),
+            keyLabel(state.customKeys.delete, ""),
+        ).filter { it.isNotEmpty() }.joinToString(" · ")
 
         for ((key, view) in keypadCells) {
             view.text = cellText(key, state.letterCase)
