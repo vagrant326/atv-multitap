@@ -8,6 +8,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.ExtractedTextRequest
 import io.github.vagrant326.atvmultitap.core.Keypad
+import io.github.vagrant326.atvmultitap.core.LetterCase
 import io.github.vagrant326.atvmultitap.core.Multitap
 import io.github.vagrant326.atvmultitap.core.Press
 import io.github.vagrant326.atvmultitap.settings.Preferences
@@ -45,6 +46,16 @@ class MultitapImeService : InputMethodService() {
      */
     private var digits = false
 
+    /**
+     * Applied where characters are written rather than inside [Multitap], which stays a question
+     * about position in a cycle. `a` and `A` are the same stop on key `2`; the case is what the
+     * field is told, not where the taps have got to.
+     */
+    private var letterCase = LetterCase.LOWER
+
+    /** The key whose meaning is waiting on its release. See [Action.DeferToRelease]. */
+    private var deferredKey = KeyEvent.KEYCODE_UNKNOWN
+
     override fun onCreate() {
         super.onCreate()
         preferences = Preferences(this)
@@ -60,6 +71,11 @@ class MultitapImeService : InputMethodService() {
         multitap.settle()
         multitap.timeoutMillis = preferences.letterTimeout
         punctuationAt = -1
+        deferredKey = KeyEvent.KEYCODE_UNKNOWN
+
+        // Like the digit mode below, the case belongs to the field and not to the app: a lock
+        // left on in one box must not follow the user into the next one.
+        letterCase = LetterCase.LOWER
 
         // A field that wants a number gets digits without being asked. Anything else starts in
         // letters even if the mode was left on: the mode belongs to the field, not to the app.
@@ -132,6 +148,23 @@ class MultitapImeService : InputMethodService() {
         return handle(action)
     }
 
+    /**
+     * `0` is the only key here that commits nothing until it is released, because it is the only
+     * one that means two things.
+     *
+     * Android delivers a hold as a second key-down, so a space written on the way down is
+     * already in the field by the time the hold announces itself as the case switch — and taking
+     * it back is visible in a field the user is looking at. Nothing else on this keyboard needs
+     * the deferral: `1` replaces its own mark in place and `2`-`9` only set composing text.
+     */
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode != deferredKey) {
+            return super.onKeyUp(keyCode, event)
+        }
+        deferredKey = KeyEvent.KEYCODE_UNKNOWN
+        return handle(Action.Space)
+    }
+
     private fun handle(action: Action): Boolean {
         when (action) {
             is Action.Ignore -> Unit
@@ -150,9 +183,26 @@ class MultitapImeService : InputMethodService() {
             is Action.PreviousLetter -> {
                 multitap.back()?.let { letter ->
                     punctuationAt = -1
-                    currentInputConnection?.setComposingText(letter.toString(), 1)
+                    currentInputConnection?.setComposingText(cased(letter), 1)
                 }
             }
+
+            /**
+             * The letter in progress is still the composing region, so the switch applies to it
+             * as well as to what follows. Pressing the case key *after* seeing the wrong case is
+             * the order people actually press them in, and making that a delete-and-retype
+             * instead of one press would waste the only advantage a composing region has.
+             */
+            is Action.ToggleCase -> {
+                // The hold has claimed the press, so the release must not also write a space.
+                deferredKey = KeyEvent.KEYCODE_UNKNOWN
+                letterCase = letterCase.next()
+                multitap.letter?.let { letter ->
+                    currentInputConnection?.setComposingText(cased(letter), 1)
+                }
+            }
+
+            is Action.DeferToRelease -> deferredKey = KeyEvent.KEYCODE_0
 
             is Action.Space -> {
                 endLetter()
@@ -210,14 +260,32 @@ class MultitapImeService : InputMethodService() {
         return true
     }
 
+    private fun cased(letter: Char): String = letterCase.apply(letter).toString()
+
     /** Hands the finished letter to the editor and puts the new one in the composing region. */
     private fun show(press: Press) {
         punctuationAt = -1
         val connection = currentInputConnection ?: return
-        if (press.settled != null) {
+        val settled = press.settled
+        if (settled != null) {
             connection.finishComposingText()
+            spendCase(settled)
         }
-        connection.setComposingText(press.pending.toString(), 1)
+        connection.setComposingText(cased(press.pending), 1)
+    }
+
+    /**
+     * A one-off capital is spent by the letter that used it, and by nothing else.
+     *
+     * [Multitap] reports the settled character in lower case whatever went into the field, so
+     * this is asking what the user typed, not what it looks like. The digit on the end of a
+     * key's cycle is not a letter and does not spend the state — reaching `2` by tapping past
+     * `abcąć` would otherwise swallow a capital and give a character that cannot show one.
+     */
+    private fun spendCase(settled: Char) {
+        if (settled.isLetter()) {
+            letterCase = letterCase.afterLetter()
+        }
     }
 
     /**
@@ -228,9 +296,9 @@ class MultitapImeService : InputMethodService() {
      */
     private fun endLetter() {
         punctuationAt = -1
-        if (multitap.settle() != null) {
-            currentInputConnection?.finishComposingText()
-        }
+        val settled = multitap.settle() ?: return
+        currentInputConnection?.finishComposingText()
+        spendCase(settled)
     }
 
     /**
@@ -299,6 +367,7 @@ class MultitapImeService : InputMethodService() {
                 cycleDigit = digit,
                 cycleIndex = multitap.activeIndex,
                 hintMode = preferences.hintMode,
+                letterCase = letterCase,
                 digits = digits,
                 hasEditor = currentInputConnection != null,
                 customKeys = preferences.customKeys,

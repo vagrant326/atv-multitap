@@ -7,7 +7,11 @@ sealed interface Action {
     /** One of `2`-`9`. Tapped again it replaces its own letter; that is the whole method. */
     data class Digit(val digit: Char) : Action
 
-    /** Finishes the letter and adds a space. `0` on every phone ever made. */
+    /**
+     * Finishes the letter and adds a space. `0` on every phone ever made — but on the way up
+     * rather than the way down, because that key now also carries [ToggleCase]. See
+     * [DeferToRelease].
+     */
     data object Space : Action
 
     /** Cycles the marks a query actually needs. `1`, again by convention. */
@@ -51,6 +55,27 @@ sealed interface Action {
 
     /** Digits in one press instead of six, for a field that wants a number. */
     data object ToggleDigits : Action
+
+    /**
+     * `abc` → `Abc` → `ABC` → `abc`, from holding `0`.
+     *
+     * Held rather than tapped because there is nothing left to tap: the reserved list below is
+     * the whole numeric row and the whole d-pad. `0` is the one key whose short press has no
+     * cycle to interfere with — it writes a space and stops — so it is the only one that can
+     * carry a second meaning without a letter run becoming ambiguous.
+     */
+    data object ToggleCase : Action
+
+    /**
+     * A key whose meaning is not settled yet: released it is a space, held it is [ToggleCase].
+     * Resolved in `MultitapImeService.onKeyUp`.
+     *
+     * Only `0` needs this. Android delivers a hold as a *second* key-down after the first, so a
+     * space written on the way down would already be in the field by the time the hold said the
+     * press was a case switch — and un-typing it is visible. Every other key here acts on the
+     * way down; ported from LetterWise, which hit this first.
+     */
+    data object DeferToRelease : Action
 
     /** Consume the event and do nothing, which is what a key held down past the first repeat
      *  has to do: a number key that repeated would append letters nobody pressed. */
@@ -127,6 +152,10 @@ object KeyBindings {
                 return Action.WordDelete
             }
             return when (keyCode) {
+                // Nothing to capitalise in a digit field, and a gesture that silently does
+                // nothing is worse than one that is not there.
+                KeyEvent.KEYCODE_0 -> if (digits) Action.Ignore else Action.ToggleCase
+
                 KeyEvent.KEYCODE_DPAD_LEFT ->
                     if (pending) Action.Ignore else Action.WordJump(forward = false)
 
@@ -162,7 +191,7 @@ object KeyBindings {
             in KeyEvent.KEYCODE_2..KeyEvent.KEYCODE_9 ->
                 Action.Digit('0' + (keyCode - KeyEvent.KEYCODE_0))
 
-            KeyEvent.KEYCODE_0 -> Action.Space
+            KeyEvent.KEYCODE_0 -> Action.DeferToRelease
             KeyEvent.KEYCODE_1 -> Action.Punctuation
 
             // Right ends the letter, left steps back through it. Up and down do the same job, and

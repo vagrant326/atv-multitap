@@ -75,6 +75,8 @@
     <string name="strip_hint_back">Cofnij</string>
     <string name="strip_hint_commit">Zatwierdź</string>
     <string name="strip_hint_delete">Kasowanie</string>
+    <string name="strip_hint_case">Wielkie</string>
+    <string name="strip_case_keys">Przytrzymaj 0 · raz, potem na stałe</string>
     <string name="strip_commit_keys">OK · 0 dodaje spację</string>
     <string name="strip_fallback_delete">BACK</string>
 
