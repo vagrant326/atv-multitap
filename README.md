@@ -3,8 +3,16 @@
 A multitap keyboard for Android TV. Number keys carry the letters, you tap until the letter you
 want appears, and nothing is predicted.
 
-Fourth application in the programme, after `atv-letterwise`, `atv-h4` and `atv-t9`. Separate
-repository, separate APK, no shared code — see `../docs/00-overview.md` for why.
+Fourth application in the programme, after
+[`atv-letterwise`](https://github.com/vagrant326/atv-letterwise),
+[`atv-h4`](https://github.com/vagrant326/atv-h4) and
+[`atv-t9`](https://github.com/vagrant326/atv-t9). Separate repository, separate APK, no shared
+code: each one is a whole input method rather than a variation on one, and the part they would
+share is the part that differs.
+
+**To install it:** AFTVnews Downloader code **8260373**, or **3168332** for the dev channel. Seven
+digits on the remote beats typing a URL with a grid keyboard, which is the problem this project
+exists to solve. [Details and direct links below.](#installing)
 
 ---
 
@@ -12,10 +20,10 @@ repository, separate APK, no shared code — see `../docs/00-overview.md` for wh
 
 Because it is the one people already know, and because it is the control.
 
-`docs/00-overview.md` §5 puts multitap at KSPC 2.0342 against T9's 1.0072, and by that number
-alone this application should not exist. §M2 is where it earns its place: **the visual-check rate
-is approximately zero.** Every other keyboard here asks the user to look at the screen and confirm
-what the keyboard decided — LetterWise on every character, T9 on every word that collides,
+The programme's comparison of methods puts multitap at KSPC 2.0342 against T9's 1.0072, and by
+that number alone this application should not exist. The other measure is where it earns its
+place: **the visual-check rate is approximately zero.** Every other keyboard here asks the user to
+look at the screen and confirm what the keyboard decided — LetterWise on every character, T9 on every word that collides,
 H4-Writer until the tree is in the thumb. This one decides nothing. Three taps of `2` is `c`
 today, was `c` on a Nokia in 2003, and will be `c` in a year.
 
@@ -54,12 +62,13 @@ is untypeable on a remote with nothing assigned.
 press instead of a timeout in the middle of a word — the complaint every phone keypad of that
 generation eventually answered with exactly this key.
 
-**It types a password, and it is the only keyboard here that does.** Capitals come from a case
+**It types a password, and it was the first keyboard here that could.** Capitals come from a case
 switch on a held `0`, three states and one gesture; the thirty-two QWERTY marks come from a held
-`1`, which swaps what `2`-`9` carry for one symbol and then returns. `docs/archive/PRD-dpad-ime.md`
-required both as G4 — "there must be no input the user is unable to type" — and this is the first
-application in the programme to satisfy it. `atv-letterwise`, `atv-h4` and `atv-t9` still cannot
-type `Tv!2026`.
+`1`, which swaps what `2`-`9` carry for one symbol and then returns. The programme's original
+requirement — there must be no input the user is unable to type — went unmet in every application
+until this one, and `Tv!2026` was the example that failed. The three siblings have since gained
+both, each by the route its own method allowed: a third layer in `atv-letterwise`, two reserved
+codes in `atv-h4`, and the same pair of holds in `atv-t9`.
 
 ## How it types
 
@@ -106,7 +115,7 @@ English letters cost exactly what they cost on a phone.
 ## What is remembered
 
 Nothing. There is no dictionary, no user word store, no adaptation and no file in the app's
-storage that holds anything typed. The privacy argument in `docs/00-overview.md` §3.1 is
+storage that holds anything typed. The privacy argument the programme makes everywhere else is
 structural here rather than promised: there is no code that could write it down.
 
 ## The network permission
@@ -117,7 +126,45 @@ Nothing runs unless the user opens that screen and presses something — no back
 receiver, no poll at keyboard start.
 
 They exist because sideloading has no update channel. They come out when this ships through a
-store. See `../docs/00-overview.md` §3.1.
+store.
+
+## Installing
+
+In the AFTVnews Downloader app, enter code **8260373**. Seven digits on the remote beats entering a
+URL with a grid keyboard, which is the problem this project exists to solve. The dev channel is
+**3168332**, and installs alongside the released one rather than over it.
+
+Or use either address directly. Both are permanent and both always serve the newest build of their
+channel:
+
+```
+https://github.com/vagrant326/atv-multitap/releases/download/latest/atv-multitap.apk
+https://github.com/vagrant326/atv-multitap/releases/download/latest-dev/atv-multitap-dev.apk
+```
+
+Dev builds are published as prereleases, so they never show up as "Latest" on the releases page —
+`latest-dev` always points at the newest one. The asset names deliberately carry no version
+number, which is what keeps both the URLs and the Downloader codes valid across releases; rename
+an asset and its code breaks silently.
+[All releases](https://github.com/vagrant326/atv-multitap/releases) are listed if you need a
+specific older one.
+
+Then Settings → System → Keyboard, select it, and enable it. Android requires that step manually
+for every IME.
+
+**If the keyboard ever leaves the TV unnavigable**, press `HOME` — an IME cannot intercept it —
+and switch keyboards or uninstall from there. A USB mouse also always works, because pointer
+events never reach the keyboard's key handling.
+
+## Updating
+
+Settings → Check for updates. It compares the installed version against the latest release of its
+own channel, downloads the APK and hands it to the system installer. The first time, Android will
+ask you to allow this app to install packages; the screen links straight there.
+
+Nothing checks on its own — no background job, no boot receiver, no poll when the keyboard starts.
+It happens when you press the button and not otherwise. A dev build will never offer to install a
+production APK over itself, or the other way round: each channel matches its own tag prefix.
 
 ## Building
 
@@ -129,6 +176,20 @@ Two flavours, `prod` and `dev`, and deliberately two *applications*: the dev bui
 `applicationId` and installs alongside the released one, so an experiment that misbehaves does not
 take the working keyboard with it.
 
+| Branch | What runs | Result |
+|---|---|---|
+| `feature/**`, `fix/**`, pull requests | CI — tests, lint, both debug APKs | artifacts only |
+| `develop` | Release dev | `dev-x.y.z`, installs as **atv-multitap dev** |
+| `main` | Release | `vx.y.z`, installs as **atv-multitap** |
+
+Day to day: work on `develop`, which publishes a dev build on every push. To ship, open a pull
+request from `develop` to `main` and merge it. **Do not delete `develop`**; it is long-lived.
+After merging, bring it back in line so the next dev release contains the merge:
+
+```bash
+git switch develop && git merge --ff-only main && git push
+```
+
 ## Known gaps
 
 - **The KSPC figure covers the letter run only.** The query corpus contains no capitals and no
@@ -136,7 +197,7 @@ take the working keyboard with it.
   real password they cost a held key each and up to four taps per mark. The figure describes a
   television search box, which is what the corpus is, and nothing else.
 - **No Less-Tap.** Reordering each key's letters by frequency is the cheap 25% saving on this
-  method — `docs/00-overview.md` §5 puts Less-Tap at 1.5266 — and it costs exactly what this
+  method — the same comparison puts Less-Tap at 1.5266 — and it costs exactly what this
   application is here to avoid: the layout stops being the one in everybody's thumb. If it is ever
   built it belongs behind a setting, off by default, measured against the figure above.
 - **`bench/queries-v1.tsv` is 26 real queries.** Small on purpose — see the header of that file —
