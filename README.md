@@ -182,6 +182,9 @@ take the working keyboard with it.
 | `develop` | Release dev | `dev-x.y.z`, installs as **atv-multitap dev** |
 | `main` | Release | `vx.y.z`, installs as **atv-multitap** |
 
+Production owns the major and the minor; a dev build keeps them and counts the patch from the
+last production release, so `dev-0.2.7` is the seventh dev build past `v0.2.0`.
+
 Day to day: work on `develop`, which publishes a dev build on every push. To ship, open a pull
 request from `develop` to `main` and merge it. **Do not delete `develop`**; it is long-lived.
 After merging, bring it back in line so the next dev release contains the merge:
